@@ -26,6 +26,8 @@ def load_tags(tag_path):
     with open(tag_path) as f:
         for line in f:
             tag = line.strip()
+            if tag == '':
+                continue
             ix_to_tag.append(tag)
     tag_to_ix = {tag: ix for ix, tag in enumerate(ix_to_tag)}
     return tag_to_ix, ix_to_tag

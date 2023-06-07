@@ -22,6 +22,8 @@ class CustomDataset(Dataset):
                 sentence = ''
                 tags = []
                 for item in unit:
+                    if item == '':
+                        continue
                     word, tag = item.split(' ')
                     sentence += word
                     tags.append(self.tag_to_ix[tag])
