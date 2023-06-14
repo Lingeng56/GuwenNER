@@ -179,15 +179,20 @@ class NERModel(pl.LightningModule):
                  tag_to_ix,
                  embedding_dim,
                  hidden_dim,
-                 lr):
+                 lr,
+                 freeze_bert):
         super(NERModel, self).__init__()
         self.encoder = BERTLSTMEncoder(pretrained_model, embedding_dim, hidden_dim)
         self.decoder = CRFDecoder(tag_to_ix, hidden_dim)
         self.lr = lr
+        # if freeze_bert:
+        #     for param in self.encoder.word_embeds.parameters():
+        #         param.requires_grad = False
 
     def training_step(self, batch, batch_idx):
         inputs, targets = batch['inputs'], batch['targets']
         hidden = self.encoder(inputs)
+        score, tag_seq = self.decoder(hidden)
         loss = self.decoder.neg_log_likelihood(hidden, targets).mean()
         self.log('training_loss', loss, sync_dist=True, prog_bar=True, logger=True, on_step=True, on_epoch=True)
         return loss
@@ -196,15 +201,10 @@ class NERModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         inputs, targets = batch['inputs'], batch['targets']
         hidden = self.encoder(inputs)
+        score, tag_seq = self.decoder(hidden)
         loss = self.decoder.neg_log_likelihood(hidden, targets).mean()
         self.log('valid_loss', loss, sync_dist=True, prog_bar=True, logger=True, on_step=True, on_epoch=True)
 
-
-    def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        inputs, targets = batch['inputs'], batch['targets']
-        hidden = self.encoder(inputs)
-        score, tag_seq = self.decoder(hidden)
-        return tag_seq
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), self.lr)
