@@ -2,6 +2,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from transformers import AutoTokenizer, AutoModel
 from utils import *
+from sklearn.metrics import f1_score
 
 
 class CRFDecoder(nn.Module):
@@ -193,17 +194,34 @@ class NERModel(pl.LightningModule):
 
 
     def validation_step(self, batch, batch_idx):
-        inputs, targets = batch['inputs'], batch['targets']
+        inputs, targets, sentence_lens, target_lens = batch['inputs'], batch['targets'], batch['sentence_lens'], batch['target_lens']
         hidden = self.encoder(inputs)
         loss = self.decoder.neg_log_likelihood(hidden, targets).mean()
         self.log('valid_loss', loss, sync_dist=True, prog_bar=True, logger=True, on_step=True, on_epoch=True)
+        score, tag_seq = self.decoder(hidden)
+        tag_seq = tag_seq.reshape(len(sentence_lens), -1)
+        for idx, sentence_len in enumerate(sentence_lens):
+            tag_seq[idx, sentence_len:] = -100000
+        tag_seq = tag_seq.reshape(-1)
+        return {
+            'pred': tag_seq,
+            'true': targets
+        }
+
+
+    def validation_epoch_end(self, outputs):
+        targets = torch.hstack([out['true'] for out in outputs]).reshape(-1).tolist()
+        predictions = torch.hstack([out['pred'] for out in outputs]).reshape(-1).tolist()
+        predictions = [pred for pred in predictions if pred != -100000]
+        score = f1_score(targets, predictions, average='micro')
+        self.log('dev_f1_score', score, sync_dist=True, prog_bar=True, logger=True, on_epoch=True)
 
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         inputs, targets, sentence_lens = batch['inputs'], batch['targets'], batch['sentence_lens']
         hidden = self.encoder(inputs)
         score, tag_seq = self.decoder(hidden)
-        tag_seq = tag_seq.reshape(len(sentence_lens), -1)
+        tag_seq = tag_seq.reshape(len(sentence_lens), -1)[:, 1:]
         for idx, sentence_len in enumerate(sentence_lens):
             tag_seq[idx, sentence_len:] = -10000
         return tag_seq

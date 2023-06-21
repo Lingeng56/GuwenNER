@@ -36,12 +36,12 @@ def train(args):
                                 collate_fn=partial(collate_fn, tokenizer=tokenizer, max_len=args.max_len),
                                 )
 
-    checkpoint_callback = ModelCheckpoint(monitor='valid_loss',
+    checkpoint_callback = ModelCheckpoint(monitor='dev_f1_score',
                                           dirpath=args.checkpoint_path,
-                                          filename='{epoch}-{valid_loss:.2f}-{val_f1:.2f}',
+                                          filename='{epoch}-{valid_loss:.2f}-{dev_f1_score:.2f}',
                                           save_last=True,
                                           save_top_k=5,
-                                          mode='min',
+                                          mode='max',
                                           )
 
     trainer = pl.Trainer(

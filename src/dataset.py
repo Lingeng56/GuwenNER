@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset
+from utils import START_TAG, STOP_TAG
 
 
 # dataset path: https://github.com/lancopku/Chinese-Literature-NER-RE-Dataset
