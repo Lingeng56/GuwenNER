@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 from transformers import AutoTokenizer, AutoModel
@@ -201,9 +200,12 @@ class NERModel(pl.LightningModule):
 
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        inputs, targets = batch['inputs'], batch['targets']
+        inputs, targets, sentence_lens = batch['inputs'], batch['targets'], batch['sentence_lens']
         hidden = self.encoder(inputs)
         score, tag_seq = self.decoder(hidden)
+        tag_seq = tag_seq.reshape(len(sentence_lens), -1)
+        for idx, sentence_len in enumerate(sentence_lens):
+            tag_seq[idx, sentence_len:] = -10000
         return tag_seq
 
     def configure_optimizers(self):

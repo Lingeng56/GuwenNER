@@ -35,7 +35,9 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         sentence = self.sentences[idx]
         tag_seq = self.tags[idx]
-        return sentence, tag_seq
+        sentence_len = len(sentence)
+        target_len = len(tag_seq)
+        return sentence, tag_seq, sentence_len, target_len
 
     def __len__(self):
         return len(self.sentences)
@@ -44,13 +46,19 @@ class CustomDataset(Dataset):
 def collate_fn(batch, tokenizer, max_len):
     batch_input_ids = []
     batch_targets = []
-    for sentence, tag_seq in batch:
+    batch_sentence_length = []
+    batch_target_length = []
+    for sentence, tag_seq, sentence_len, target_len in batch:
         batch_input_ids.append(sentence)
         batch_targets.append(torch.LongTensor(tag_seq))
+        batch_sentence_length.append(sentence_len)
+        batch_target_length.append(target_len)
     batch_inputs = tokenizer(batch_input_ids, padding='max_length', truncation=True, return_tensors="pt", max_length=max_len)
     batch_targets = torch.hstack(batch_targets)
     batch_data = {
         'inputs': batch_inputs,
-        'targets': batch_targets
+        'targets': batch_targets,
+        'sentence_lens': batch_sentence_length,
+        'target_lens': batch_target_length
     }
     return batch_data
